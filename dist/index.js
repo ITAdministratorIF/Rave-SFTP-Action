@@ -30656,35 +30656,36 @@ sftp.connect({
     }
 
 }).then(() => {
-    console.log("Upload finished.");
+    console.log("File upload finished.");
     return sftp.end();
 }).catch(err => {
     core.setFailed(`Action failed with error ${err}`);
     process.exit(1);
 });
-
+	
 async function processPath(local, remote) {
-    console.log("Uploading: " + local + " to " + remote)
-    if (fs.lstatSync(local).isDirectory()) {
-        return sftp.uploadDir(local, remote);
-    } else {
-
-        var directory = await sftp.realPath(path.dirname(remote));
-        if (!(await sftp.exists(directory))) {
-            await sftp.mkdir(directory, true);
-            console.log("Created directories.");
-        }
-
-        var modifiedPath = remote;
-        if (await sftp.exists(remote)) {
-            if ((await sftp.stat(remote)).isDirectory) {
-                var modifiedPath = modifiedPath + path.basename(local);
-            }
-        }
-
-        return sftp.put(fs.createReadStream(local), modifiedPath);
+    console.log("Uploading: " + local + " to " + remote);
+    var directory = await sftp.realPath(path.dirname(remote));
+    if (!(await sftp.exists(directory))) {
+        await sftp.mkdir(directory, true);
+        console.log("Created directories.");
     }
+
+    // Delete the existing file at the remote path
+    const existingFilePath = path.join(remote, path.basename(local));
+    if (await sftp.exists(existingFilePath)) {
+        await sftp.delete(existingFilePath);
+        console.log("Deleted existing file: " + existingFilePath);
+    } else {
+        console.log("No existing file found at: " + existingFilePath);
+    }
+
+    console.log("Starting upload of file...");
+    const formattedRemote = remote.endsWith('/') ? remote + path.basename(local) : remote;
+    return sftp.put(fs.createReadStream(local), formattedRemote).then(() => {
+    });
 }
+
 })();
 
 module.exports = __webpack_exports__;
